@@ -27,11 +27,12 @@ object Executor {
     request: ExecutionRequest,
     plan: Step[R],
     variables: Map[String, InputValue] = Map(),
-    fieldWrappers: List[FieldWrapper[R]] = Nil
+    fieldWrappers: List[FieldWrapper[R]] = Nil,
+    enableParallelism: Boolean = true
   ): URIO[R, GraphQLResponse[CalibanError]] = {
 
     val allowParallelism = request.operationType match {
-      case OperationType.Query        => true
+      case OperationType.Query        => enableParallelism
       case OperationType.Mutation     => false
       case OperationType.Subscription => false
     }

@@ -25,6 +25,7 @@ trait GraphQL[-R] { self =>
   protected val schemaBuilder: RootSchemaBuilder[R]
   protected val wrappers: List[Wrapper[R]]
   protected val additionalDirectives: List[__Directive]
+  protected val enableParallelism: Boolean = true
 
   private[caliban] def validateRootSchema: IO[ValidationError, RootSchema[R]] =
     Validator.validateSchema(schemaBuilder)
@@ -115,7 +116,7 @@ trait GraphQL[-R] { self =>
                     case OperationType.Subscription => schemaToExecute.subscription.getOrElse(schemaToExecute.query)
                   }
                   execute = (req: ExecutionRequest) =>
-                    Executor.executeRequest(req, op.plan, request.variables.getOrElse(Map()), fieldWrappers)
+                    Executor.executeRequest(req, op.plan, request.variables.getOrElse(Map()), fieldWrappers, enableParallelism)
                   result <- wrap(execute)(executionWrappers, executionRequest)
                 } yield result).catchAll(Executor.fail)
               )(overallWrappers, request)
@@ -208,7 +209,7 @@ object GraphQL {
    * It requires an instance of [[caliban.schema.Schema]] for each operation type.
    * This schema will be derived by Magnolia automatically.
    */
-  def graphQL[R, Q, M, S: SubscriptionSchema](resolver: RootResolver[Q, M, S], directives: List[__Directive] = Nil)(
+  def graphQL[R, Q, M, S: SubscriptionSchema](resolver: RootResolver[Q, M, S], directives: List[__Directive] = Nil, parallelism: Boolean = true)(
     implicit querySchema: Schema[R, Q],
     mutationSchema: Schema[R, M],
     subscriptionSchema: Schema[R, S]
@@ -220,7 +221,8 @@ object GraphQL {
         Operation(subscriptionSchema.toType_(isSubscription = true), subscriptionSchema.resolve(r))
       )
     )
-    val wrappers: List[Wrapper[R]]              = Nil
+    val wrappers: List[Wrapper[R]] = Nil
     val additionalDirectives: List[__Directive] = directives
+    override val enableParallelism: Boolean = parallelism
   }
 }
